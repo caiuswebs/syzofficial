@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="blue">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SYZ STORE</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        /* --- VARIABLES --- */
+        :root { --radius: 12px; --nav-h: 75px; --header-h: 64px; }
+
+        /* THEMES */
+        [data-theme="blue"] { --primary: #2563eb; --primary-light: #eff6ff; --text: #0f172a; --text-muted: #64748b; --bg: #f8fafc; --surface: #ffffff; --border: #e2e8f0; --success: #10b981; --danger: #ef4444; --coin: #eab308; }
+        [data-theme="black"] { --primary: #3b82f6; --primary-light: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --bg: #000000; --surface: #111111; --border: #333333; --success: #22c55e; --danger: #ef4444; --coin: #fbbf24; }
+        [data-theme="sakura"] { --primary: #db2777; --primary-light: #fdf2f8; --text: #881337; --text-muted: #be185d; --bg: #fff1f2; --surface: #ffffff; --border: #fbcfe8; --success: #059669; --danger: #e11d48; --coin: #f59e0b; }
+        [data-theme="white"] { --primary: #171717; --primary-light: #f5f5f5; --text: #171717; --text-muted: #737373; --bg: #ffffff; --surface: #fafafa; --border: #e5e5e5; --success: #16a34a; --danger: #dc2626; --coin: #f59e0b; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); padding-top: var(--header-h); padding-bottom: calc(var(--nav-h) + 20px); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+
+        .hidden { display: none !important; }
+        .container { padding: 16px; max-width: 480px; margin: 0 auto; }
+        .coin-text { color: var(--coin); font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
+        
+        /* UI ELEMENTS */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: var(--radius); font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-upi { background: white; border: 1px solid #cbd5e1; color: #333; }
+        
+        input { width: 100%; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; outline: none; color: var(--text); }
+        input:focus { border-color: var(--primary); }
+
+        /* HEADER */
+        header { background: var(--surface); height: var(--header-h); padding: 0 16px; display: flex; justify-content: space-between; align-items: center; position: fixed; top: 0; width: 100%; z-index: 50; border-bottom: 1px solid var(--border); }
+        .brand { font-weight: 800; font-size: 1.3rem; color: var(--primary); }
+        .bell-icon { position: relative; font-size: 1.4rem; background:none; border:none; color:var(--text); margin-right: 10px; }
+        .bell-dot { position: absolute; top: 0; right: 0; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; display: none; border: 2px solid var(--surface); }
+
+        /* BANNER */
+        .hero-banner { width: 100%; height: 180px; border-radius: var(--radius); background: var(--border); margin-bottom: 25px; object-fit: cover; }
+        .section-title { font-weight: 800; margin-bottom: 15px; font-size: 1.2rem; }
+        
+        /* GAMES GRID */
+        .games-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .game-card { background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); text-align: center; padding-bottom: 10px; cursor: pointer; transition: transform 0.1s; }
+        .game-card:active { transform: scale(0.98); }
+        .game-img { width: 100%; aspect-ratio: 3/4; object-fit: cover; background: #eee; }
+        .game-name { font-size: 0.85rem; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px; }
+
+        /* ORDERS */
+        .order-card { background: var(--surface); padding: 16px; border-radius: var(--radius); margin-bottom: 12px; border: 1px solid var(--border); }
+        .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .st-SUCCESS { background: #dcfce7; color: #15803d; }
+        .st-PENDING { background: #fef9c3; color: #a16207; }
+        .st-FAILED { background: #fee2e2; color: #b91c1c; }
+
+        /* BOTTOM NAV */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: var(--nav-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; z-index: 40; padding-bottom: 5px; }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-muted); cursor: pointer; background: none; border: none; width: 100%; }
+        .nav-btn i { font-size: 1.6rem; margin-bottom: 2px; transition: 0.2s; }
+        .nav-btn span { font-size: 0.85rem; font-weight: 600; }
+        .nav-btn.active { color: var(--primary); }
+        .nav-btn.active i { transform: translateY(-3px); }
+
+        /* MODALS */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: none; align-items: flex-end; backdrop-filter: blur(3px); }
+        .modal-overlay.active { display: flex; }
+        .modal-sheet { background: var(--surface); width: 100%; border-radius: 24px 24px 0 0; padding: 24px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; color: var(--text); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        /* PACK GRID WITH IMAGES */
+        .pack-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 15px 0; }
+        .pack-item { padding: 10px; border: 1px solid var(--border); border-radius: 12px; text-align: center; cursor: pointer; transition: 0.2s; background: var(--bg); display: flex; flex-direction: column; align-items: center; }
+        .pack-item.selected { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 2px var(--primary); }
+        .pack-item img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 8px; border-radius: 8px; }
+        .pack-name { font-size: 0.85rem; font-weight: 600; line-height: 1.2; }
+        .pack-price { font-size: 0.9rem; font-weight: 800; color: var(--coin); margin-top: 4px; }
+
+        /* AUTH OVERLAY */
+        #auth-view { position: fixed; inset: 0; background: var(--surface); z-index: 999; display: flex; flex-direction: column; justify-content: center; padding: 30px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* SIDEBAR */
+        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; display: none; backdrop-filter: blur(2px); }
+        .sidebar { position: fixed; top: 0; left: -280px; width: 260px; height: 100%; background: var(--surface); z-index: 95; transition: 0.3s ease; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar.open { left: 0; }
+        .menu-item { padding: 16px 20px; display: flex; align-items: center; gap: 15px; font-weight: 600; cursor: pointer; border-bottom: 1px solid var(--border); color: var(--text); font-size: 1rem; }
+        
+        /* THEMES */
+        .theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
+        .theme-opt { padding: 12px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+        .theme-opt.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+
+        /* UPI STEP */
+        .upi-step-box { text-align: center; animation: fadeIn 0.3s; }
+        .qr-container { padding: 15px; background: white; border: 1px solid #ccc; border-radius: 12px; display: inline-block; margin-bottom: 15px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="auth-view" class="hidden">
+        <h1 style="color:var(--primary); text-align:center; margin-bottom:10px; font-size:2.2rem;">SYZ STORE</h1>
+        <p style="text-align:center; color:var(--text-muted); margin-bottom:30px;">Login required to purchase</p>
+        
+        <div id="login-form">
+            <input type="email" id="l-email" placeholder="Email Address">
+            <input type="password" id="l-pass" placeholder="Password">
+            <button class="btn btn-primary" onclick="auth('LOGIN')">Sign In</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeAuth()">Cancel / Browse</button>
+            <p style="text-align:center; margin-top:20px;">No account? <span onclick="toggleAuth()" style="color:var(--primary); cursor:pointer; font-weight:700;">Register</span></p>
+        </div>
+        
+        <div id="reg-form" class="hidden">
+            <input type="text" id="r-name" placeholder="Username">
+            <input type="email" id="r-email" placeholder="Email Address">
+            <input type="password" id="r-pass" placeholder="Password">
+            <button class="btn btn-primary" onclick="auth('REGISTER')">Create Account</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeAuth()">Cancel / Browse</button>
+            <p style="text-align:center; margin-top:20px;">Have an account? <span onclick="toggleAuth()" style="color:var(--primary); cursor:pointer; font-weight:700;">Login</span></p>
+        </div>
+        <p id="auth-msg" style="color:var(--danger); text-align:center; margin-top:10px; font-size:0.9rem; font-weight:600;"></p>
+    </div>
+
+    <div id="main-app">
+        
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <aside class="sidebar" id="sidebar">
+            <div class="menu-item" style="justify-content:space-between; color:var(--primary);">
+                <span>MENU</span><span onclick="toggleSidebar()">✕</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-user-circle" style="font-size:1.5rem;"></i> 
+                <div><div id="sb-username">Guest</div><div id="sb-email" style="font-size:0.75rem; color:var(--text-muted);">Please Login</div></div>
+            </div>
+            
+            <div style="padding:15px 20px; font-size:0.8rem; font-weight:700; color:var(--text-muted); margin-top:10px;">THEMES</div>
+            <div class="theme-grid">
+                <div class="theme-opt active" onclick="setTheme('blue', this)">Blue</div>
+                <div class="theme-opt" onclick="setTheme('black', this)">Black</div>
+                <div class="theme-opt" onclick="setTheme('sakura', this)">Sakura</div>
+                <div class="theme-opt" onclick="setTheme('white', this)">White</div>
+            </div>
+
+            <div class="menu-item" onclick="openLink('whatsapp')"><i class="fab fa-whatsapp" style="color:#25D366;"></i> Support</div>
+            <div class="menu-item" onclick="openLink('instagram')"><i class="fab fa-instagram" style="color:#E1306C;"></i> Instagram</div>
+            <div class="menu-item" onclick="logout()" style="color:var(--danger); margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Logout</div>
+        </aside>
+
+        <header>
+            <button class="btn" style="width:auto; padding:0; background:none;" onclick="toggleSidebar()">
+                <i class="fas fa-bars" style="font-size:1.4rem; color:var(--text);"></i>
+            </button>
+            <div class="brand">SYZ STORE</div>
+            <div style="display:flex; align-items:center;">
+                <button class="bell-icon" onclick="openNotifs()">
+                    <i class="fas fa-bell"></i><div class="bell-dot" id="bell-dot"></div>
+                </button>
+                <div onclick="switchTab('wallet')" style="background:var(--primary-light); color:var(--text); padding:8px 14px; border-radius:20px; font-weight:700; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    <i class="fas fa-coins" style="color:var(--coin);"></i> <span id="header-wallet">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="tab-home" class="view container">
+            <img id="banner-img" class="hero-banner hidden" src="">
+            <div class="section-title">All Games</div>
+            <div class="games-grid" id="games-container">
+                <div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">Loading...</div>
+            </div>
+        </div>
+
+        <div id="tab-orders" class="view container hidden">
+            <div class="section-title">My Orders</div>
+            <div id="orders-list">
+                <div style="text-align:center; padding:40px; color:var(--text-muted);">Please login to view orders.</div>
+            </div>
+        </div>
+
+        <div id="tab-wallet" class="view container hidden">
+            <div style="background: linear-gradient(135deg, var(--primary), #000); color: white; padding: 30px; border-radius: 20px; margin-bottom: 25px; text-align: center; box-shadow: 0 10px 20px -10px var(--primary);">
+                <div style="font-size:0.95rem; opacity:0.9;">Syz Coin Balance</div>
+                <div style="font-size:3rem; margin: 5px 0;" class="coin-text"><i class="fas fa-coins"></i> <span id="wallet-balance" style="color:white;">0</span></div>
+            </div>
+            <button class="btn btn-primary" onclick="openAddMoney()">
+                <i class="fas fa-plus-circle"></i> Buy Syz Coins
+            </button>
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" onclick="switchTab('home')" id="nav-home">
+                <i class="fas fa-home"></i><span>Home</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('orders')" id="nav-orders">
+                <i class="fas fa-shopping-bag"></i><span>Orders</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('wallet')" id="nav-wallet">
+                <i class="fas fa-wallet"></i><span>Wallet</span>
+            </button>
+        </nav>
+    </div>
+
+    <div class="modal-overlay" id="modal-money">
+        <div class="modal-sheet">
+            <h3 style="margin-bottom:15px; font-size:1.3rem;">Buy Coins</h3>
+            <label style="font-size:0.9rem; font-weight:700;">Enter Amount (₹)</label>
+            <input type="number" id="add-amt" placeholder="e.g. 100">
+            <button class="btn btn-primary" onclick="generateQR('ADD_MONEY')">Generate QR</button>
+            
+            <div id="money-qr-result" class="hidden" style="text-align:center; margin-top:20px; padding:20px; border:1px solid var(--border); border-radius:16px; background:white;">
+                <img id="money-qr-img" src="" style="width:180px; height:180px; object-fit:contain;">
+                <p style="color:black; font-weight:700; margin-top:10px; font-size:1.1rem;">Scan to Pay ₹<span id="money-qr-amt">0</span></p>
+                <div style="font-size:0.8rem; color:gray; margin-bottom:15px;">UPI: 9863918122@mbk</div>
+                <button class="btn btn-primary" style="background:#25D366; border:none;" onclick="window.open('https://wa.me/919863918122?text=I%20paid%20via%20QR%20for%20Coins', '_blank')">
+                    <i class="fab fa-whatsapp"></i> Send Screenshot
+                </button>
+            </div>
+            <button class="btn btn-outline" style="margin-top:15px;" onclick="closeModals()">Close</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-game">
+        <div class="modal-sheet">
+            <div id="game-step-1">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 id="modal-game-title" style="font-size:1.4rem;">Game</h3>
+                    <span onclick="closeModals()" style="cursor:pointer; font-size:1.5rem; color:var(--text-muted);">✕</span>
+                </div>
+                
+                <label style="font-size:0.9rem; font-weight:700;">Player Details</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="inp-player-id" placeholder="Player ID" style="flex:2;">
+                    <input type="text" id="inp-zone-id" placeholder="Zone" style="flex:1;">
+                </div>
+
+                <label style="font-size:0.9rem; font-weight:700;">Select Pack</label>
+                <div id="modal-packs" class="pack-grid"></div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; font-weight:800; font-size:1.1rem;">
+                    <span>Total:</span>
+                    <span class="coin-text"><i class="fas fa-coins"></i> <span id="checkout-price">0</span></span>
+                </div>
+
+                <div style="display:flex; gap:12px; margin-top:15px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="initiatePurchase('WALLET')">Pay with Coins</button>
+                    <button class="btn btn-upi" style="flex:1;" onclick="initiatePurchase('UPI')">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg" style="height:20px;">
+                    </button>
+                </div>
+                <p id="purchase-error" style="color:var(--danger); text-align:center; font-size:0.85rem; margin-top:12px; font-weight:600;"></p>
+            </div>
+
+            <div id="game-step-upi" class="hidden upi-step-box">
+                <h3 style="margin-bottom:15px;">Pay & Verify</h3>
+                <div class="qr-container">
+                    <img id="upi-step-qr" src="" style="width:180px; height:180px;">
+                </div>
+                <p style="font-weight:700; margin-bottom:5px;">Scan to Pay ₹<span id="upi-step-amt">0</span></p>
+                <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:20px;">UPI: 9863918122@mbk</p>
+
+                <button id="btn-verify-wa" class="btn btn-success">
+                    <i class="fab fa-whatsapp"></i> Verify Your Order
+                </button>
+                <button class="btn btn-outline" style="margin-top:10px;" onclick="closeModals()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-notif">
+        <div class="modal-sheet">
+            <h3>Notifications</h3>
+            <div id="notif-list" style="max-height:60vh; overflow-y:auto; margin-top:15px;"></div>
+            <button class="btn btn-outline" style="margin-top:15px;" onclick="closeModals()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyDSzZb0mCNqjpgfKEA6A2CbbUL8WGP3Ul0",
+          authDomain: "syzofficial-df445.firebaseapp.com",
+          databaseURL: "https://syzofficial-df445-default-rtdb.firebaseio.com",
+          projectId: "syzofficial-df445",
+          storageBucket: "syzofficial-df445.firebasestorage.app",
+          messagingSenderId: "245687366634",
+          appId: "1:245687366634:web:4c410dfda2003cf904f893",
+          measurementId: "G-MW834ZJ0GZ"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const authCtx = firebase.auth();
+        const db = firebase.database();
+
+        let currentUser = null, userData = {}, gamesData = {}, selectedPack = null, settingsData = {};
+
+        // INITIAL LOAD
+        db.ref('games').on('value', s => { gamesData = s.val() || {}; renderGames(); });
+        db.ref('heroBanner').on('value', s => { if(s.val()) { document.getElementById('banner-img').src = s.val(); document.getElementById('banner-img').classList.remove('hidden'); }});
+        db.ref('settings').once('value').then(s => settingsData = s.val() || {});
+
+        authCtx.onAuthStateChanged((user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('auth-view').classList.add('hidden');
+                loadUserData();
+            } else {
+                document.getElementById('header-wallet').innerText = "0";
+                document.getElementById('sb-username').innerText = "Guest";
+                document.getElementById('sb-email').innerText = "Please Login";
+                document.getElementById('orders-list').innerHTML = '<div style="text-align:center; padding:40px; color:gray;">Please login to view orders.</div>';
+            }
+        });
+
+        function loadUserData() {
+            const uid = currentUser.uid;
+            db.ref(`users/${uid}`).on('value', s => {
+                userData = s.val() || {};
+                if(userData.blocked) { alert("Account Blocked"); logout(); return; }
+                document.getElementById('header-wallet').innerText = userData.wallet || 0;
+                document.getElementById('wallet-balance').innerText = userData.wallet || 0;
+                document.getElementById('sb-username').innerText = userData.username || 'User';
+                document.getElementById('sb-email').innerText = userData.email || '';
+            });
+
+            db.ref(`notifications/${uid}`).on('value', s => {
+                const list = document.getElementById('notif-list');
+                const dot = document.getElementById('bell-dot');
+                list.innerHTML = "";
+                if(!s.exists()) { dot.style.display = 'none'; list.innerHTML = "<div style='text-align:center; color:gray;'>No notifications</div>"; return; }
+                const notifs = Object.values(s.val()).reverse();
+                dot.style.display = 'block';
+                notifs.forEach(n => list.innerHTML += `<div style="padding:15px 0; border-bottom:1px solid #eee;"><b>${n.title}</b><br><span style="font-size:0.9rem; color:#666;">${n.body}</span></div>`);
+            });
+
+            db.ref(`orders/${uid}`).on('value', s => {
+                const list = document.getElementById('orders-list');
+                list.innerHTML = "";
+                if(!s.exists()) { list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No orders found</div>'; return; }
+                const orders = Object.values(s.val()).sort((a,b) => b.createdAt - a.createdAt);
+                orders.forEach(o => {
+                    list.innerHTML += `
+                    <div class="order-card">
+                        <div style="display:flex; justify-content:space-between;">
+                            <div><b>${o.pack}</b><br><small style="color:gray;">${o.playerId} (${o.zoneId})</small></div>
+                            <span class="status-badge st-${o.status}">${o.status}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px; align-items:center;">
+                            <span class="coin-text" style="font-size:1rem;"><i class="fas fa-coins"></i> ${o.amount}</span>
+                            <button class="btn" style="width:auto; padding:6px 12px; font-size:0.8rem; background:#25D366; color:white;" onclick='sendToWhatsApp(${JSON.stringify(o)})'><i class="fab fa-whatsapp"></i> Chat</button>
+                        </div>
+                    </div>`;
+                });
+            });
+        }
+
+        // AUTH
+        function auth(type) {
+            const email = document.getElementById(type==='LOGIN'?'l-email':'r-email').value;
+            const pass = document.getElementById(type==='LOGIN'?'l-pass':'r-pass').value;
+            const msg = document.getElementById('auth-msg');
+            msg.innerText = "Processing...";
+
+            if(type === 'REGISTER') {
+                authCtx.createUserWithEmailAndPassword(email, pass)
+                    .then((res) => db.ref(`users/${res.user.uid}`).set({ 
+                        username: document.getElementById('r-name').value, 
+                        email: email, wallet: 0, blocked: false 
+                    }))
+                    .then(() => closeAuth())
+                    .catch(e => msg.innerText = e.message);
+            } else {
+                authCtx.signInWithEmailAndPassword(email, pass)
+                    .then(() => closeAuth())
+                    .catch(e => msg.innerText = e.message);
+            }
+        }
+        function toggleAuth() { document.getElementById('login-form').classList.toggle('hidden'); document.getElementById('reg-form').classList.toggle('hidden'); document.getElementById('auth-msg').innerText = ""; }
+        function closeAuth() { document.getElementById('auth-view').classList.add('hidden'); }
+        function logout() { authCtx.signOut(); }
+
+        // GAMES
+        function renderGames() {
+            const grid = document.getElementById('games-container');
+            grid.innerHTML = "";
+            const games = Object.values(gamesData);
+            if(games.length === 0) { grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;">No games available.</div>'; return; }
+            games.forEach(g => {
+                if(g.active !== false) grid.innerHTML += `<div class="game-card" onclick="openGameModal('${g.id}')"><img src="${g.img}" class="game-img"><div class="game-name">${g.name}</div></div>`;
+            });
+        }
+
+        window.openGameModal = (gid) => {
+            const g = gamesData[gid];
+            document.getElementById('modal-game-title').innerText = g.name;
+            document.getElementById('checkout-price').innerText = "0";
+            document.getElementById('inp-player-id').value = "";
+            document.getElementById('inp-zone-id').value = "";
+            selectedPack = null;
+            
+            // RESET
+            document.getElementById('game-step-1').classList.remove('hidden');
+            document.getElementById('game-step-upi').classList.add('hidden');
+            
+            db.ref(`packs/${gid}`).once('value').then(s => {
+                const grid = document.getElementById('modal-packs');
+                grid.innerHTML = "";
+                const packs = s.val();
+                if(packs) (Array.isArray(packs)?packs:Object.values(packs)).forEach(p => {
+                    const d = document.createElement('div');
+                    d.className = 'pack-item';
+                    // Use Game Pack Image if available, else Game Logo
+                    const pImg = g.packImage ? g.packImage : g.img;
+                    
+                    d.innerHTML = `<img src="${pImg}"><div class="pack-name">${p.name}</div><div class="pack-price"><i class="fas fa-coins"></i> ${p.price}</div>`;
+                    d.onclick = () => {
+                        document.querySelectorAll('.pack-item').forEach(e=>e.classList.remove('selected'));
+                        d.classList.add('selected');
+                        selectedPack = p;
+                        document.getElementById('checkout-price').innerText = p.price;
+                    };
+                    grid.appendChild(d);
+                });
+            });
+            document.getElementById('modal-game').classList.add('active');
+        };
+
+        window.initiatePurchase = (method) => {
+            if(!currentUser) {
+                document.getElementById('auth-view').classList.remove('hidden');
+                return;
+            }
+
+            const pid = document.getElementById('inp-player-id').value;
+            const zid = document.getElementById('inp-zone-id').value;
+            const err = document.getElementById('purchase-error');
+            
+            if(!selectedPack) return err.innerText = "Select a pack";
+            if(!pid || !zid) return err.innerText = "Enter Player ID & Zone";
+            const price = parseInt(selectedPack.price); // Price in COINS
+            
+            // WALLET (COINS) CHECK
+            if(method === 'WALLET') {
+                if((userData.wallet || 0) < price) return err.innerText = "Insufficient SYZ Coins";
+            }
+
+            if(confirm(`Proceed with ${method}?`)) {
+                if(method === 'WALLET') db.ref(`users/${currentUser.uid}`).update({ wallet: (userData.wallet||0) - price });
+                
+                const oid = "-O" + Math.random().toString(36).substr(2, 9);
+                const orderData = {
+                    oid, uid: currentUser.uid, username: userData.username, email: userData.email,
+                    pack: selectedPack.name, amount: price, playerId: pid, zoneId: zid,
+                    status: 'PENDING', method: method, type: 'COINS', createdAt: Date.now()
+                };
+
+                db.ref(`orders/${currentUser.uid}/${oid}`).set(orderData);
+                
+                if(method === 'UPI') {
+                    // Show QR for UPI Payment (Amount in Rupees = Price in Coins)
+                    document.getElementById('game-step-1').classList.add('hidden');
+                    document.getElementById('game-step-upi').classList.remove('hidden');
+                    
+                    // QR Generation (Paying Rupees for the Pack)
+                    const upiUrl = `upi://pay?pa=9863918122@mbk&pn=SYZStore&am=${price}&cu=INR`;
+                    document.getElementById('upi-step-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiUrl)}`;
+                    document.getElementById('upi-step-amt').innerText = price;
+                    
+                    const text = `Hey 👋 Syz Store,\nI have paid ₹${price} for ${selectedPack.name}.\n\nOrder ID: ${oid}\nName: ${userData.username}\nEmail: ${userData.email}\nMlbb id ${pid}\nMlbb server ${zid}\n\nHere is my payment screenshot.`;
+                    document.getElementById('btn-verify-wa').onclick = () => window.open(`https://wa.me/919863918122?text=${encodeURIComponent(text)}`, '_blank');
+                    
+                } else {
+                    alert("Order Placed Successfully!");
+                    closeModals();
+                    switchTab('orders');
+                }
+            }
+        };
+
+        window.sendToWhatsApp = (o) => {
+            const text = `Hey 👋 Syz Store,\nI paid ${o.amount} Coins via ${o.method} for ${o.pack}.\nOrder ID: ${o.oid || o.id}\nName: ${o.username}\nEmail: ${o.email}\nMlbb uid: ${o.playerId}\nMlbb server: ${o.zoneId}`;
+            window.open(`https://wa.me/919863918122?text=${encodeURIComponent(text)}`, '_blank');
+        };
+
+        window.generateQR = (type) => {
+            const amt = parseInt(document.getElementById('add-amt').value);
+            if(!amt || amt < 10 || amt > 10000) return alert("Amount must be between ₹10 and ₹10,000");
+            const upiUrl = `upi://pay?pa=9863918122@mbk&pn=SYZStore&am=${amt}&cu=INR`;
+            document.getElementById('money-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiUrl)}`;
+            document.getElementById('money-qr-amt').innerText = amt;
+            document.getElementById('money-qr-result').classList.remove('hidden');
+        };
+
+        window.switchTab = (t) => {
+            document.querySelectorAll('.view').forEach(e => e.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
+            document.getElementById(`tab-${t}`).classList.remove('hidden');
+            document.getElementById(`nav-${t}`).classList.add('active');
+        };
+        window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.querySelector('.sidebar-overlay').style.display = document.getElementById('sidebar').classList.contains('open') ? 'block' : 'none'; };
+        window.setTheme = (theme, el) => { document.documentElement.setAttribute('data-theme', theme); document.querySelectorAll('.theme-opt').forEach(e => e.classList.remove('active')); el.classList.add('active'); };
+        window.openAddMoney = () => { document.getElementById('money-qr-result').classList.add('hidden'); document.getElementById('add-amt').value = ""; document.getElementById('modal-money').classList.add('active'); };
+        window.openNotifs = () => document.getElementById('modal-notif').classList.add('active');
+        window.closeModals = () => document.querySelectorAll('.modal-overlay').forEach(e => e.classList.remove('active'));
+        window.openLink = (type) => { const v = settingsData[type]; if(v) window.open(type==='whatsapp' ? `https://wa.me/${v}` : v, '_blank'); };
+    </script>
+</body>
+</html>
